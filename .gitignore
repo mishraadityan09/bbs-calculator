@@ -1,0 +1,7 @@
+# Project drawings are proprietary — never publish
+*.pdf
+
+# Local tool/session artifacts
+.claude/
+.playwright-mcp/
+.DS_Store

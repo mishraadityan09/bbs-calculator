@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBS Calculator — Pier Cap P355 (SPS-P355-VIA-SD)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 14px; color: #1a1a1a; background: #f5f6f8; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: #555; font-size: 12.5px; margin-bottom: 10px; }
+  .warn { background: #fff3cd; border: 1px solid #e0a800; border-radius: 6px; padding: 9px 12px; font-size: 12.5px; margin-bottom: 12px; }
+  .panel { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+  .panel h2 { font-size: 13px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .04em; color: #333; }
+  .panel .hint { font-size: 11.5px; color: #666; margin: 0 0 8px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: flex-end; }
+  label { font-size: 10.5px; color: #555; display: block; margin-bottom: 2px; }
+  label[title] { cursor: help; border-bottom: 1px dotted #999; }
+  input, select { font-size: 13px; padding: 3px 5px; border: 1px solid #bbb; border-radius: 4px; width: 86px; }
+  input[type=checkbox] { width: auto; }
+  input.w2 { width: 150px; } input.w3 { width: 210px; }
+  input.sm { width: 50px; } input.md { width: 62px; }
+  input.assumed { background: #fff8d6; border-color: #d4a900; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; background: #fff; }
+  th, td { border: 1px solid #ccc; padding: 3px 4px; text-align: center; vertical-align: middle; }
+  th { background: #eef1f5; font-size: 10.5px; }
+  th[title] { cursor: help; text-decoration: underline dotted; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.dims input { margin: 1px; }
+  td.dims .dl { font-size: 9px; color: #777; }
+  .tot { font-weight: 600; background: #f3f7f3; }
+  button { font-size: 12.5px; padding: 5px 10px; border: 1px solid #888; border-radius: 5px; background: #fff; cursor: pointer; margin-right: 6px; }
+  button:hover { background: #eee; }
+  .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #bars thead th:first-child, #bars tbody td:first-child { position: sticky; left: 0; z-index: 2; background: #eef1f5; }
+  #bars tbody td:first-child { background: #fff; }
+  .swipeHint { display: none; font-size: 11px; color: #777; margin: 0 0 6px; }
+  .rowWarn { color: #b00; font-size: 14px; cursor: help; }
+  details { margin: 6px 0; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+  details .body { font-size: 12.5px; color: #333; padding: 6px 2px; line-height: 1.45; }
+  details .body code { background: #f0f0f0; padding: 0 4px; border-radius: 3px; }
+  .sum2 { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sumCard { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; min-width: 220px; }
+  .sumCard b.big { font-size: 16px; }
+  .pay { background: #eef7ee; } .proc { background: #eef2f9; }
+  #cutplan pre { font-size: 11.5px; background: #fafafa; border: 1px solid #eee; padding: 8px; overflow-x: auto; }
+  #warnList { font-size: 12px; color: #b00; }
+  svg.shape { background: #fff; }
+  #printSheet { display: none; }
+  @media (max-width: 900px) { .swipeHint { display: block; } }
+  @media (max-width: 600px) {
+    body { margin: 8px; }
+    input, select { font-size: 16px; }  /* ≥16px stops iOS zoom-on-focus */
+    input.sm { width: 54px; } input.md { width: 66px; }
+    h1 { font-size: 16px; }
+  }
+  @media print {
+    body { background: #fff; margin: 0; }
+    .app { display: none; }
+    #printSheet { display: block; font-size: 11px; }
+    #printSheet table { font-size: 10px; page-break-inside: auto; }
+    #printSheet tr { page-break-inside: avoid; }
+    @page { size: A4 landscape; margin: 10mm; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<h1>Bar Bending Schedule Calculator — PSC Pier Cap P355</h1>
+<div class="sub">Single-file offline BBS tool · IS 2502 / SP-34 / IRC:112 / MoRTH-1600 conventions · everything below is editable — no coding needed to adjust any rule. Autosaves in this browser.</div>
+
+<div class="warn"><b>⚠ Draft estimation aid only — NOT a substitute for the approved BBS.</b>
+Yellow cells are ASSUMED values that must be verified against issued-for-construction drawings by a qualified engineer before procurement or billing.
+Open the <b>Help</b> section below to see exactly how every number is calculated, with the code clause behind it.</div>
+
+<div class="panel">
+  <h2>Project header (prints on the BBS sheet)</h2>
+  <div class="grid" id="metaGrid"></div>
+</div>
+
+<div class="panel">
+  <h2>Settings — all conventions editable</h2>
+  <div class="hint">Hover any underlined label for what it does. Change a value and every bar recalculates instantly.</div>
+  <div class="grid" id="setGrid"></div>
+</div>
+
+<div class="panel">
+  <h2>Help — how every number works (tap to open)</h2>
+  <details><summary>Cutting length method</summary><div class="body">
+    <b>Cutting length = shape length + hooks − bend deductions + laps</b>, then rounded UP to the next 25 mm (IS 2502 Cl. 5.1.1 — toggle in Settings).<br>
+    • <b>Shape length</b> = sum of outer dimensions A/B/C/D for the chosen shape (formulas listed under "Shape library" below).<br>
+    • <b>Hooks</b>: each hook adds <code>hook factor × dia</code>, minimum the hook floor. Default 10d ≥ 75 mm = legacy seismic 135° hook (IS 13920:1993 / common bridge practice). IS 13920:2016 allows 6d ≥ 65 mm; non-seismic 90° stirrup hook is 8d — change the factor in Settings if your spec says so.<br>
+    • <b>Bend deductions</b> (because outer dimensions overlap at each corner): 45°→1d, 90°→2d, 135°→3d, 180°→4d (SP-34 site convention, sharp-edge method). Each shape applies its own bend counts automatically; the Custom shape lets you set them by hand.<br>
+    • <b>Laps</b>: leave the Laps cell <b>blank</b> and the tool auto-inserts laps when the bar is longer than the stock length: pieces = 1 + ⌈(L − stock)/(stock − lap)⌉. Auto values show with a <b>*</b>. Type a number to override. Lap length = lap factor × dia.
+  </div></details>
+  <details><summary>Lap factors for THIS project (35d / 50d) and IRC:112</summary><div class="body">
+    Drawing note 6 says lap = 35d, and 50d for bar mark 1 (top bars). This matches IRC:112-2020 exactly: for Fe500D in M60, basic anchorage k = 25 (Table 15.4); with 50% bars lapped at a section ×1.4 → <b>35d</b> (favourable bond); top bars of a deep pour are "unfavourable bond" ×1.43 → <b>≈50d</b>. So use 50 in the Lap×dia cell for top bars, 35 for the rest — already prefilled.<br>
+    Bars over 32 mm must not be lap-spliced (IRC:112 Cl. 15.2.6) — the tool warns and you should use couplers (set Laps = 0 and note "couplers" in Remarks; couplers add no length).
+  </div></details>
+  <details><summary>Payable weight vs procurement weight (MoRTH billing)</summary><div class="body">
+    MoRTH Specification Cl. <b>1608</b>: reinforcement is paid by measured length <b>including hooks but EXCLUDING laps</b>, converted to tonnes at nominal mass. Wastage, laps, couplers, chairs and binding wire are NOT paid — they are inside the rate.<br>
+    • <b>Payable weight</b> (green card) = cutting length minus lap lengths × count × unit mass. Use this for BOQ/billing.<br>
+    • <b>Procurement weight</b> (blue card) = full cutting length incl. laps × count × unit mass, plus the wastage % and rolling-margin % from Settings. Use this for ordering steel.<br>
+    Rolling margin: steel is billed between supplier and contractor on actual section weight; IS 1786 allows ±3% (bars &gt;16 mm), ±5% (12–16), ±7% (≤10). Enter your measured margin % (negative = rolls light) to adjust the procurement tonnage.
+  </div></details>
+  <details><summary>Unit weight</summary><div class="body">
+    Default uses the <b>IS 1786 Table 1 nominal masses</b> (8:0.395, 10:0.617, 12:0.885, 16:1.58, 20:2.47, 25:3.85, 28:4.83, 32:6.31, 36:7.99, 40:9.86 kg/m) — the values billing must use. Untick the toggle to fall back to d²/162 for odd diameters.
+  </div></details>
+  <details><summary>Shape library formulas</summary><div class="body">
+    Straight: <code>A</code> · L-bend: <code>A+B</code> (1×90°) · U / end-bends: <code>A+B+C</code> (2×90°) · Crank/bent-up: <code>A + 2×0.42D</code> (4×45°, the 0.42D rule) · Closed 2-leg stirrup: <code>2(A+B)</code> + 2 hooks (3×90° + 2×135°) · Circular ring: <code>πD</code> + 2 hooks (2×135°) · Spiral/helix: <code>n×√((πD)² + P²) + 2πD</code> closing turns, n = ⌈H/P⌉+1 · Chair: <code>A+2B+2C</code> (4×90°) · Custom: comma-separated segment lengths + your own bend counts.<br>
+    For stirrups measure A, B out-to-out: member size − 2×cover (this cap: 3400−90=3310, 2500−90=2410 at the pier).<br>
+    Bars are counted as <code>members × (⌈run ÷ spacing⌉ + 1)</code> when Spacing and Run are filled; otherwise <code>members × bars/member</code> typed directly.
+  </div></details>
+  <details><summary>Cutting plan (steel ordering)</summary><div class="body">
+    The optimizer packs every cut piece (per diameter) into stock bars using first-fit-decreasing — the same heuristic commercial cut-and-bend software uses, typically within 1–3% of the mathematical optimum. Offcuts longer than the reuse threshold are counted reusable, not waste. Bars longer than stock are split at laps automatically before nesting.
+  </div></details>
+</div>
+
+<div class="panel">
+  <h2>📘 Guide — how to use &amp; make changes (no coding needed)</h2>
+  <details open><summary>First time / checking the P355 numbers</summary><div class="body">
+    1. Every <b>white</b> cell was read from drawing SPS-P355-VIA-SD; every <b style="background:#fff8d6;padding:0 3px">yellow</b> cell is an assumption — fix those first.<br>
+    2. From <b>sheet 10 plan</b>, find the stirrup zone lengths: type each zone's length into the <b>Run</b> cell of bars 5 / 5a — the bar count then computes itself from the @175 spacing (the Bars/mem cell locks automatically when Run + Spacing are filled).<br>
+    3. From <b>Section C-C</b>, count/measure the 5a internal link widths and replace the assumed 300 in dimension A.<br>
+    4. Side bars 3 / 3a: enter each zone depth in <b>Run</b> (spacing 135 is already set, Members = 2 faces).<br>
+    5. Add the missing bars (3b, 4, 4a, M1/M2 mesh) with <b>+ Add bar</b> when you have sheets 7–11.
+  </div></details>
+  <details><summary>Changing a rule (lap, hook, wastage, rate…)</summary><div class="body">
+    • All rules live in <b>Settings</b> — hover a label to read what it controls. Nothing is hidden in code.<br>
+    • Per-bar lap rule: the <b>Lap ×dia</b> cell on each row (50 for top mark 1, 35 for others, per drawing note 6).<br>
+    • Project-specific hook rule? Change <b>Hook length ×dia</b> (10 → 6 for IS 13920:2016, 8 for non-seismic 90° hooks).<br>
+    • Steel price: put your rate in <b>₹/kg</b> and the procurement card shows cost.<br>
+    • Different structure entirely? Change the Project header, delete rows, add your own — the engine is generic.
+  </div></details>
+  <details><summary>Saving, sharing and printing</summary><div class="body">
+    • The tool <b>autosaves in this browser</b> — close and reopen, your data is there. (Clearing browser data erases it!)<br>
+    • <b>⬇ Save project file</b> downloads a .json you can WhatsApp to anyone — they open this same HTML and use <b>⬆ Load project file</b>. That's how we exchange updates without touching code.<br>
+    • <b>⬇ CSV</b> opens directly in Excel for billing sheets.<br>
+    • <b>🖨 Print BBS sheet</b> prints the formal A4-landscape schedule with shape sketches, dia-wise summary, payable vs procurement totals and signature blocks — that's the page to submit for checking.<br>
+    • <b>↺ Reset</b> brings back the original P355 drawing data if anything gets messed up.
+  </div></details>
+  <details><summary>Reading the results</summary><div class="body">
+    • <b>Cut len</b> = one bar's cutting length in mm (already rounded up to 25 mm). <b>Weight</b> includes laps (what you buy); <b>Payable</b> excludes laps (what MoRTH pays).<br>
+    • Laps shown with <b>*</b> were inserted automatically because the bar is longer than 12 m stock.<br>
+    • ⚠ marks a problem — hover it to read (e.g. lap on a &gt;32 mm bar, bar longer than stock with laps forced to 0).<br>
+    • The <b>Cutting plan</b> at the bottom says exactly how many 12 m bars to order per diameter and how to cut each one.
+  </div></details>
+</div>
+
+<div class="panel">
+  <h2>Bars — white cells from drawing, <span style="background:#fff8d6;border:1px solid #d4a900;padding:0 4px">yellow</span> = assumed, verify</h2>
+  <div class="swipeHint">← swipe table sideways to see all columns →</div>
+  <div class="tableWrap">
+  <table id="bars">
+    <thead><tr>
+      <th>Mark</th>
+      <th title="Shape preset — picks the length formula, bend deductions and sketch automatically">Shape</th>
+      <th>Sketch</th>
+      <th title="Only the dimensions this shape needs are shown. All in mm, measured out-to-out">Dimensions (mm)</th>
+      <th>Dia<br>(mm)</th>
+      <th title="Hooks count × (hook factor × dia, min floor) from Settings">Hooks</th>
+      <th title="c/c spacing in mm — fill together with Run to auto-count bars">Spacing</th>
+      <th title="Length over which bars are distributed. Bars/member = ceil(Run/Spacing)+1">Run<br>(mm)</th>
+      <th title="How many identical members/faces/sets. Total = members × bars per member">Mem-<br>bers</th>
+      <th title="Used when Spacing/Run are blank">Bars/<br>mem</th>
+      <th>Total<br>bars</th>
+      <th title="Blank = auto from stock length (shown with *). Type a number to override; 0 = no laps">Laps</th>
+      <th title="Lap length = this × dia. This project: 35 (50 for top bar mark 1)">Lap<br>×dia</th>
+      <th title="Rounded up to next 25 mm (IS 2502 Cl 5.1.1) if enabled in Settings">Cut len<br>(mm)</th>
+      <th>Total<br>(m)</th>
+      <th title="Cutting length × count × unit mass — includes laps (procurement basis)">Weight<br>(kg)</th>
+      <th title="Excludes laps per MoRTH Cl.1608 — billing basis">Payable<br>(kg)</th>
+      <th title="Notes — print in the Remarks column">Remarks</th>
+      <th></th><th></th>
+    </tr></thead>
+    <tbody></tbody>
+    <tfoot></tfoot>
+  </table>
+  </div>
+  <div style="margin-top:8px">
+    <button onclick="addRow()">+ Add bar</button>
+    <button onclick="window.print()">🖨 Print BBS sheet</button>
+    <button onclick="exportCSV()">⬇ CSV (Excel)</button>
+    <button onclick="exportJSON()">⬇ Save project file</button>
+    <button onclick="document.getElementById('importFile').click()">⬆ Load project file</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
+    <button onclick="resetDefaults()">↺ Reset to P355 drawing data</button>
+  </div>
+  <div id="warnList" style="margin-top:6px"></div>
+</div>
+
+<div class="panel">
+  <h2>Summary</h2>
+  <div class="sum2" id="summary"></div>
+</div>
+
+<div class="panel" id="cutplan">
+  <h2>Cutting plan — stock bars to order (first-fit-decreasing)</h2>
+  <div class="hint">Per diameter: how to cut each stock bar, bars to purchase, utilization and waste. Recomputes live.</div>
+  <div id="cutOut"></div>
+</div>
+
+</div><!-- /app -->
+<div id="printSheet"></div>
+
+<script>
+/* ============ CONSTANTS ============ */
+const IS1786 = {6:0.222,8:0.395,10:0.617,12:0.885,16:1.58,20:2.47,25:3.85,28:4.83,32:6.31,36:7.99,40:9.86};
+const SHAPES = {
+  straight:{label:"Straight", dims:["A"], hooks:0},
+  L:       {label:"L-bend",   dims:["A","B"], hooks:0},
+  U:       {label:"U / end-bends", dims:["A","B","C"], hooks:0},
+  crank:   {label:"Crank (0.42D)", dims:["A","D"], hooks:0},
+  stirrup: {label:"Closed stirrup", dims:["A","B"], hooks:2},
+  ring:    {label:"Circular ring", dims:["D"], hooks:2},
+  spiral:  {label:"Spiral/helix", dims:["D","P","H"], hooks:0},
+  chair:   {label:"Chair", dims:["A","B","C"], hooks:0},
+  custom:  {label:"Custom segments", dims:[], hooks:0},
+};
+const SET_FIELDS = [
+  ["hookF","Hook length (× dia)","10d≥75mm = legacy 135° seismic hook. IS 13920:2016 allows 6d≥65; non-seismic 90° hook = 8d"],
+  ["hookMin","Hook minimum (mm)","Floor on each hook length"],
+  ["d45","Deduct 45° (× dia)","SP-34 sharp-edge bend deduction"],
+  ["d90","Deduct 90° (× dia)","SP-34 sharp-edge bend deduction"],
+  ["d135","Deduct 135° (× dia)","SP-34 sharp-edge bend deduction"],
+  ["d180","Deduct 180° (× dia)","SP-34 sharp-edge bend deduction"],
+  ["stock","Stock bar length (mm)","Standard Indian TMT stock = 12000. Auto-laps and the cutting plan use this"],
+  ["wastage","Wastage % (procurement)","2–3% with an optimized cut list, 5% conservative. Added to procurement weight only"],
+  ["rollm","Rolling margin % (signed)","Measured section weight vs nominal, per IS 1786 (±3% for >16mm). Negative = steel rolls light. Applied to procurement weight"],
+  ["reuse","Reusable offcut ≥ (mm)","Offcuts at least this long count as reusable stock, not waste"],
+  ["wdiv","Fallback weight = dia²/…","Used only for diameters missing from the IS 1786 table"],
+  ["rate","Steel rate (₹/kg)","Optional — shows indicative cost on the procurement card"],
+];
+const META_FIELDS = [
+  ["project","Project / package","w3"],["element","Structure & element","w2"],
+  ["drawing","GFC drawing no. + rev","w2"],["bbsno","BBS no. / rev",""],
+  ["date","Date",""],["concrete","Concrete grade",""],
+  ["steel","Steel grade","w2"],["cover","Clear cover",""],
+  ["lapbasis","Lap basis","w2"],["preparedBy","Prepared by","w2"],["checkedBy","Checked by","w2"],
+];
+
+/* ============ STATE ============ */
+const DEFAULTS = {
+  version: 2,
+  meta: { project:"Viaduct — Pier P355", element:"PSC Pier Cap", drawing:"SPS-P355-VIA-SD (sh.05–11)",
+    bbsno:"BBS-P355-PC-01 R0", date:"", concrete:"M60", steel:"Fe500D (IS:1786)",
+    cover:"45 mm", lapbasis:"35d / 50d (mark 1)", preparedBy:"", checkedBy:"" },
+  set: { hookF:10, hookMin:75, d45:1, d90:2, d135:3, d180:4, stock:12000,
+    wastage:3, rollm:0, reuse:1000, wdiv:162, rate:0, useIS1786:true, round25:true },
+  bars: [
+    {mark:"1", shape:"U", dims:{A:25310,B:650,C:650}, dia:25, hooks:0, spacing:"", run:"", members:1, barsPer:31,
+     laps:"", lapF:50, seg:"", b45:0,b90:0,b135:0,b180:0,
+     remarks:"Top bars (31 from table). A = 25400−2×45. 50d lap = unfavourable bond, drawing note 6.", a:{}},
+    {mark:"2", shape:"custom", dims:{}, dia:20, hooks:0, spacing:"", run:"", members:1, barsPer:31,
+     laps:"", lapF:35, seg:"2900,11350,11350,650,650", b45:0,b90:2,b135:0,b180:0,
+     remarks:"Bottom bars along soffit taper 2900 + 2×√(11250²+1500²); kink bends neglected — VERIFY profile.", a:{seg:1}},
+    {mark:"3", shape:"U", dims:{A:25310,B:300,C:300}, dia:20, hooks:0, spacing:135, run:"", members:2, barsPer:8,
+     laps:"", lapF:35, seg:"", b45:0,b90:0,b135:0,b180:0,
+     remarks:"Side-face bars @135, both faces, upper zone — count assumed; enter zone depth in Run to auto-count.", a:{barsPer:1}},
+    {mark:"3a", shape:"U", dims:{A:25310,B:300,C:300}, dia:20, hooks:0, spacing:135, run:"", members:2, barsPer:12,
+     laps:"", lapF:35, seg:"", b45:0,b90:0,b135:0,b180:0,
+     remarks:"Side-face bars @135, both faces, lower zone — count assumed.", a:{barsPer:1}},
+    {mark:"5", shape:"stirrup", dims:{A:3310,B:2410}, dia:20, hooks:2, spacing:175, run:"", members:1, barsPer:17,
+     laps:"0", lapF:35, seg:"", b45:0,b90:0,b135:0,b180:0,
+     remarks:"Outer 2L closed stirrup @175. A,B = section 3400×2500 − 2×45 cover. Sets assumed — VERIFY zone on sheet 10.", a:{barsPer:1}},
+    {mark:"5a", shape:"stirrup", dims:{A:300,B:2410}, dia:20, hooks:2, spacing:175, run:"", members:6, barsPer:17,
+     laps:"0", lapF:35, seg:"", b45:0,b90:0,b135:0,b180:0,
+     remarks:"12L set = 6 internal links per set @175. Link width 300 ASSUMED — VERIFY leg positions.", a:{dims:1,barsPer:1}},
+  ],
+};
+let state = loadState();
+function loadState() {
+  try {
+    const raw = localStorage.getItem("bbsP355v2");
+    if (raw) { const s = JSON.parse(raw); if (s && s.version === 2 && Array.isArray(s.bars)) return s; }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+let saveTimer;
+function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(() =>
+  localStorage.setItem("bbsP355v2", JSON.stringify(state)), 400); }
+
+/* ============ ENGINE ============ */
+const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+function shapeInfo(r) {
+  const v = k => num(r.dims && r.dims[k]);
+  switch (r.shape) {
+    case "straight": return { len: v("A"), b:[0,0,0,0] };
+    case "L":        return { len: v("A")+v("B"), b:[0,1,0,0] };
+    case "U":        return { len: v("A")+v("B")+v("C"), b:[0,2,0,0] };
+    case "crank":    return { len: v("A")+2*0.42*v("D"), b:[4,0,0,0] };
+    case "stirrup":  return { len: 2*(v("A")+v("B")), b:[0,3,2,0] };
+    case "ring":     return { len: Math.PI*v("D"), b:[0,0,2,0] };
+    case "spiral": { const C = Math.PI*v("D"), n = v("P")>0 ? Math.ceil(v("H")/v("P"))+1 : 0;
+                     return { len: n*Math.hypot(C,v("P")) + 2*C, b:[0,0,0,0] }; }
+    case "chair":    return { len: v("A")+2*v("B")+2*v("C"), b:[0,4,0,0] };
+    default:         return { len: String(r.seg||"").split(",").map(num).reduce((a,b)=>a+b,0),
+                              b:[num(r.b45),num(r.b90),num(r.b135),num(r.b180)] };
+  }
+}
+function unitWt(d, s) { return (s.useIS1786 && IS1786[d]) ? IS1786[d] : d*d/num(s.wdiv); }
+function calcRow(r) {
+  const s = state.set, d = num(r.dia), info = shapeInfo(r);
+  const hook = Math.max(num(s.hookF)*d, num(s.hookMin)) * num(r.hooks);
+  const ded = (info.b[0]*num(s.d45) + info.b[1]*num(s.d90) + info.b[2]*num(s.d135) + info.b[3]*num(s.d180)) * d;
+  const L0 = info.len + hook - ded;                    // pre-lap length
+  const ll = num(r.lapF) * d, S = num(s.stock);
+  let laps, auto = false;
+  if (String(r.laps).trim() === "") {
+    laps = (L0 > S && S > ll) ? Math.ceil((L0 - S)/(S - ll)) : 0; auto = true;
+  } else laps = num(r.laps);
+  const round = x => s.round25 ? Math.ceil(x/25)*25 : Math.round(x);
+  const CL = round(L0 + laps*ll), payCL = round(L0);
+  const perMem = (num(r.spacing) > 0 && num(r.run) > 0)
+    ? Math.ceil(num(r.run)/num(r.spacing)) + 1 : num(r.barsPer);
+  const total = Math.max(num(r.members),1) * perMem;
+  const u = unitWt(d, s);
+  return { d, L0, laps, auto, ll, CL, payCL, perMem, total, u,
+    totLen: CL*total/1000, wt: CL*total/1000*u, payWt: payCL*total/1000*u,
+    autoCount: num(r.spacing)>0 && num(r.run)>0 };
+}
+function audit(r, c, i, marks) {
+  const w = [];
+  if (!c.d) w.push("No diameter — row ignored in totals.");
+  if (!c.total) w.push("Zero bar count.");
+  if (c.d > 32 && c.laps > 0) w.push("Bars >32 mm must not be lap-spliced (IRC:112 15.2.6) — use couplers, set Laps=0.");
+  if (c.laps === 0 && !c.auto && c.L0 > num(state.set.stock)) w.push("Longer than stock but Laps forced to 0 — needs laps or couplers.");
+  if (marks.indexOf(r.mark) !== i) w.push("Duplicate bar mark '"+r.mark+"'.");
+  return w;
+}
+
+/* ============ SVG SKETCHES ============ */
+function esc(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+function txt(x,y,t,rot){ return '<text x="'+x+'" y="'+y+'" font-size="9" text-anchor="middle"'+(rot?' transform="rotate('+rot+' '+x+' '+y+')"':'')+'>'+esc(t)+'</text>'; }
+function sketch(r) {
+  const v = k => r.dims && r.dims[k] != null ? r.dims[k] : "";
+  let g = "";
+  const P = 'fill="none" stroke="#000" stroke-width="2" stroke-linejoin="round"';
+  switch (r.shape) {
+    case "straight": g = '<line x1="12" y1="30" x2="158" y2="30" stroke="#000" stroke-width="2"/>' + txt(85,22,"A="+v("A")); break;
+    case "L": g = '<polyline points="12,18 146,18 146,52" '+P+'/>' + txt(78,12,"A="+v("A")) + txt(157,38,"B="+v("B"),-90); break;
+    case "U": g = '<polyline points="14,50 14,18 156,18 156,50" '+P+'/>' + txt(85,12,"A="+v("A")) + txt(7,36,v("B"),-90) + txt(165,36,v("C"),-90); break;
+    case "crank": g = '<polyline points="10,44 45,44 65,22 115,22 135,44 162,44" '+P+'/>' + txt(88,58,"A="+v("A")) + txt(88,14,"D="+v("D")); break;
+    case "stirrup": g = '<rect x="22" y="14" width="130" height="38" '+P+'/><line x1="22" y1="14" x2="36" y2="28" stroke="#000" stroke-width="2"/><line x1="34" y1="14" x2="44" y2="24" stroke="#000" stroke-width="2"/>' + txt(87,62,"A="+v("A")) + txt(10,34,"B="+v("B"),-90); break;
+    case "ring": g = '<circle cx="85" cy="32" r="22" '+P+'/><line x1="98" y1="14" x2="106" y2="24" stroke="#000" stroke-width="2"/>' + txt(85,36,"D="+v("D")); break;
+    case "spiral": g = '<ellipse cx="85" cy="16" rx="34" ry="7" '+P+'/><ellipse cx="85" cy="32" rx="34" ry="7" '+P+'/><ellipse cx="85" cy="48" rx="34" ry="7" '+P+'/>' + txt(85,62,"D="+v("D")+" P="+v("P")+" H="+v("H")); break;
+    case "chair": g = '<polyline points="14,46 40,46 40,16 124,16 124,46 150,46" '+P+'/>' + txt(82,10,"A="+v("A")) + txt(32,34,"B="+v("B"),-90) + txt(82,58,"C (legs)"); break;
+    default: {
+      const segs = String(r.seg||"").split(",").map(s=>s.trim()).filter(Boolean).slice(0,6);
+      const n = Math.max(segs.length,1), step = 140/n;
+      let x = 14, y = 22, pts = x+","+y, lbl = "";
+      segs.forEach((sg,j) => {
+        if (j%2===0) { lbl += txt(x+step/2, y-7, sg); x += step; }
+        else { lbl += txt(x+8, y+step/4+3, sg, -90); y += Math.min(step,26); }
+        pts += " "+x+","+y;
+      });
+      g = '<polyline points="'+pts+'" '+P+'/>' + lbl;
+    }
+  }
+  return '<svg class="shape" width="172" height="66" viewBox="0 0 172 66">'+g+'</svg>';
+}
+
+/* ============ RENDER ============ */
+const S = id => document.getElementById(id);
+function metaPanel() {
+  S("metaGrid").innerHTML = META_FIELDS.map(([k,lbl,cls]) =>
+    '<div><label>'+lbl+'</label><input class="'+(cls||"")+'" value="'+esc(state.meta[k])+'" oninput="state.meta.'+k+'=this.value;calc()"></div>').join("");
+}
+function setPanel() {
+  S("setGrid").innerHTML = SET_FIELDS.map(([k,lbl,tip]) =>
+    '<div><label title="'+esc(tip)+'">'+lbl+'</label><input type="number" step="any" value="'+esc(state.set[k])+'" oninput="state.set.'+k+'=this.value;calc()"></div>').join("")
+  + '<div><label title="IS 1786 Table 1 nominal masses for billing; untick for d²/divisor">IS 1786 weights</label><input type="checkbox" '+(state.set.useIS1786?"checked":"")+' onchange="state.set.useIS1786=this.checked;calc()"></div>'
+  + '<div><label title="IS 2502 Cl. 5.1.1 — cutting lengths specified to the next greater 25 mm">Round up to 25 mm</label><input type="checkbox" '+(state.set.round25?"checked":"")+' onchange="state.set.round25=this.checked;calc()"></div>';
+}
+function fld(i, key, cls, sub) {
+  const r = state.bars[i];
+  const val = sub ? (r.dims[key] != null ? r.dims[key] : "") : r[key];
+  const a = r.a && r.a[key] ? " assumed" : (sub && r.a && r.a.dims ? " assumed" : "");
+  const path = sub ? "state.bars["+i+"].dims['"+key+"']" : "state.bars["+i+"]."+key;
+  return '<input class="'+(cls||"")+a+'" value="'+esc(val)+'" oninput="'+path+'=this.value;calc()">';
+}
+function buildTable() {
+  S("bars").querySelector("tbody").innerHTML = state.bars.map((r,i) => {
+    const dims = (SHAPES[r.shape]||SHAPES.custom).dims;
+    const dimCell = r.shape === "custom"
+      ? '<div class="dl">segments, comma-sep</div>'+fld(i,"seg","w2")
+        +'<div class="dl">bends 45/90/135/180:</div>'+fld(i,"b45","sm")+fld(i,"b90","sm")+fld(i,"b135","sm")+fld(i,"b180","sm")
+      : dims.map(k => '<span class="dl">'+k+'</span> '+fld(i,k,"md",true)).join(" ");
+    const shapeSel = '<select onchange="changeShape('+i+',this.value)">'
+      + Object.keys(SHAPES).map(k => '<option value="'+k+'"'+(r.shape===k?" selected":"")+'>'+SHAPES[k].label+'</option>').join("") + '</select>';
+    return '<tr>'
+      +'<td>'+fld(i,"mark","sm")+'</td>'
+      +'<td>'+shapeSel+'</td>'
+      +'<td id="sk'+i+'"></td>'
+      +'<td class="dims" style="text-align:left">'+dimCell+'</td>'
+      +'<td>'+fld(i,"dia","sm")+'</td>'
+      +'<td>'+fld(i,"hooks","sm")+'</td>'
+      +'<td>'+fld(i,"spacing","sm")+'</td>'
+      +'<td>'+fld(i,"run","md")+'</td>'
+      +'<td>'+fld(i,"members","sm")+'</td>'
+      +'<td id="bp'+i+'">'+fld(i,"barsPer","sm")+'</td>'
+      +'<td class="num" id="tc'+i+'"></td>'
+      +'<td>'+fld(i,"laps","sm")+'<span id="la'+i+'" class="dl"></span></td>'
+      +'<td>'+fld(i,"lapF","sm")+'</td>'
+      +'<td class="num" id="cl'+i+'"></td>'
+      +'<td class="num" id="tl'+i+'"></td>'
+      +'<td class="num" id="wt'+i+'"></td>'
+      +'<td class="num" id="pw'+i+'"></td>'
+      +'<td style="text-align:left;min-width:170px">'+fld(i,"remarks","w2")+'</td>'
+      +'<td id="wn'+i+'"></td>'
+      +'<td><button onclick="delRow('+i+')">✕</button></td>'
+    +'</tr>'; }).join("");
+  calc();
+}
+function changeShape(i, v) {
+  const r = state.bars[i]; r.shape = v;
+  if (r.hooks == 0 && SHAPES[v].hooks) r.hooks = SHAPES[v].hooks;
+  buildTable();
+}
+function addRow() {
+  state.bars.push({mark:"", shape:"straight", dims:{A:0}, dia:16, hooks:0, spacing:"", run:"", members:1, barsPer:1,
+    laps:"", lapF:35, seg:"", b45:0,b90:0,b135:0,b180:0, remarks:"", a:{}});
+  buildTable();
+}
+function delRow(i) { state.bars.splice(i,1); buildTable(); }
+function resetDefaults() {
+  if (confirm("Replace everything with the P355 drawing defaults? Your current edits will be lost."))
+    { state = JSON.parse(JSON.stringify(DEFAULTS)); metaPanel(); setPanel(); buildTable(); }
+}
+
+function calc() {
+  const marks = state.bars.map(r => r.mark);
+  const byDia = {}, byMem = {}; let totLen=0, totWt=0, totPay=0; const allWarns = [];
+  state.bars.forEach((r,i) => {
+    const c = calcRow(r);
+    S("sk"+i).innerHTML = sketch(r);
+    S("tc"+i).textContent = c.total;
+    S("la"+i).textContent = c.auto && c.laps ? " "+c.laps+"*" : (c.auto ? " 0*" : "");
+    S("cl"+i).textContent = Math.round(c.CL).toLocaleString();
+    S("tl"+i).textContent = c.totLen.toFixed(1);
+    S("wt"+i).textContent = c.wt.toFixed(0);
+    S("pw"+i).textContent = c.payWt.toFixed(0);
+    const bpInput = S("bp"+i).querySelector("input");
+    if (bpInput) bpInput.disabled = c.autoCount;
+    if (c.autoCount) S("bp"+i).title = "auto: ceil(run/spacing)+1 = " + c.perMem;
+    const w = audit(r, c, i, marks);
+    S("wn"+i).innerHTML = w.length ? '<span class="rowWarn" title="'+esc(w.join(" | "))+'">⚠</span>' : "";
+    if (w.length) allWarns.push("Mark "+(r.mark||"(blank)")+": "+w.join(" "));
+    if (c.d && c.total) {
+      totLen += c.totLen; totWt += c.wt; totPay += c.payWt;
+      byDia[c.d] = (byDia[c.d]||0) + c.wt;
+      const m = (state.meta.element||"Member"); byMem[m] = (byMem[m]||0) + c.wt;
+    }
+  });
+  const s = state.set;
+  const proc = totWt * (1 + num(s.wastage)/100) * (1 + num(s.rollm)/100);
+  S("bars").querySelector("tfoot").innerHTML =
+    '<tr class="tot"><td colspan="13" style="text-align:right">Totals</td>'
+    +'<td></td><td class="num">'+totLen.toFixed(1)+'</td><td class="num">'+totWt.toFixed(0)+'</td>'
+    +'<td class="num">'+totPay.toFixed(0)+'</td><td colspan="3"></td></tr>';
+  const dias = Object.keys(byDia).sort((a,b)=>a-b);
+  S("summary").innerHTML =
+    '<div class="sumCard pay"><b>PAYABLE (MoRTH Cl.1608)</b><br>incl. hooks, excl. laps/wastage<br><b class="big">'
+      + (totPay/1000).toFixed(3) + ' t</b></div>'
+    +'<div class="sumCard proc"><b>PROCUREMENT</b><br>incl. laps + '+num(s.wastage)+'% wastage'
+      + (num(s.rollm) ? ', '+s.rollm+'% rolling margin' : '') + '<br><b class="big">'+(proc/1000).toFixed(3)+' t</b>'
+      + (num(s.rate)>0 ? '<br>≈ ₹'+Math.round(proc*num(s.rate)).toLocaleString() : '') + '</div>'
+    +'<div class="sumCard"><b>Dia-wise (incl. laps)</b><br>'
+      + dias.map(d => 'Ø'+d+': '+byDia[d].toFixed(0)+' kg').join('<br>') + '</div>';
+  S("warnList").innerHTML = allWarns.length ? "⚠ " + allWarns.join("<br>⚠ ") : "";
+  cuttingPlan(byDia);
+  printSheet(totLen, totWt, totPay, proc, byDia);
+  autosave();
+}
+
+/* ============ CUTTING PLAN (FFD) ============ */
+function cuttingPlan() {
+  const s = state.set, stock = num(s.stock), reuse = num(s.reuse);
+  const piecesByDia = {};
+  state.bars.forEach(r => {
+    const c = calcRow(r);
+    if (!c.d || !c.total) return;
+    const pcs = [];
+    let rem = c.CL;
+    while (rem > stock + 0.5) { pcs.push(stock); rem -= stock; }
+    if (rem > 0.5) pcs.push(rem);
+    (piecesByDia[c.d] = piecesByDia[c.d] || []).push(...Array(c.total).fill(pcs).flat());
+  });
+  let out = "";
+  Object.keys(piecesByDia).sort((a,b)=>a-b).forEach(d => {
+    const pieces = piecesByDia[d].slice().sort((a,b)=>b-a);
+    const bins = [];
+    pieces.forEach(p => {
+      const b = bins.find(b => b.rem >= p - 0.5);
+      if (b) { b.rem -= p; b.cuts.push(p); } else bins.push({ rem: stock - p, cuts: [p] });
+    });
+    const pat = {};
+    bins.forEach(b => { const k = b.cuts.map(c=>Math.round(c)).join(" + "); (pat[k] = pat[k]||{n:0,off:b.rem}).n++; });
+    const used = bins.length * stock;
+    const cutSum = pieces.reduce((a,b)=>a+b,0);
+    const offcuts = bins.map(b=>b.rem);
+    const reusable = offcuts.filter(o=>o>=reuse).reduce((a,b)=>a+b,0);
+    const waste = used - cutSum - reusable;
+    const u = unitWt(num(d), s);
+    out += "Ø"+d+" mm — buy "+bins.length+" stock bars × "+(stock/1000)+" m  ("
+      + (bins.length*stock/1000*u).toFixed(0)+" kg) · utilization "+(100*cutSum/used).toFixed(1)
+      + "% · waste "+(100*waste/used).toFixed(1)+"%"
+      + (reusable ? " · reusable offcuts "+(reusable/1000).toFixed(1)+" m" : "") + "\n"
+      + Object.keys(pat).map(k => "   "+pat[k].n+" bar(s):  "+k+"   → offcut "+Math.round(pat[k].off)+" mm").join("\n") + "\n\n";
+  });
+  S("cutOut").innerHTML = out ? "<pre>"+esc(out)+"</pre>" : '<div class="hint">No bars yet.</div>';
+}
+
+/* ============ PRINT SHEET ============ */
+function printSheet(totLen, totWt, totPay, proc, byDia) {
+  const m = state.meta, s = state.set;
+  const head = '<h2 style="text-align:center;margin:2px">BAR BENDING SCHEDULE</h2>'
+    +'<table style="width:100%;margin-bottom:6px"><tr>'
+    +'<td><b>Project:</b> '+esc(m.project)+'</td><td><b>Structure:</b> '+esc(m.element)+'</td><td><b>Drawing:</b> '+esc(m.drawing)+'</td></tr>'
+    +'<tr><td><b>BBS No:</b> '+esc(m.bbsno)+'</td><td><b>Date:</b> '+esc(m.date)+'</td><td><b>Concrete / Steel:</b> '+esc(m.concrete)+' / '+esc(m.steel)+'</td></tr>'
+    +'<tr><td><b>Clear cover:</b> '+esc(m.cover)+'</td><td><b>Lap basis:</b> '+esc(m.lapbasis)+'</td><td><b>Hook:</b> '+s.hookF+'d ≥ '+s.hookMin+' mm; deductions '+s.d45+'d/'+s.d90+'d/'+s.d135+'d/'+s.d180+'d</td></tr></table>';
+  const rows = state.bars.map((r,i) => {
+    const c = calcRow(r);
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(r.mark)+'</td><td>'+sketch(r)+'</td><td>'+c.d+'</td>'
+      +'<td>'+esc(r.spacing||"—")+'</td><td>'+Math.max(num(r.members),1)+'</td><td>'+c.perMem+'</td><td>'+c.total+'</td>'
+      +'<td>'+c.laps+(c.auto&&c.laps?"*":"")+'</td>'
+      +'<td>'+(c.CL/1000).toFixed(3)+'</td><td>'+c.totLen.toFixed(1)+'</td>'
+      +'<td>'+c.u.toFixed(3)+'</td><td>'+c.wt.toFixed(1)+'</td><td>'+c.payWt.toFixed(1)+'</td>'
+      +'<td style="text-align:left">'+esc(r.remarks)+'</td></tr>';
+  }).join("");
+  const dias = Object.keys(byDia||{}).sort((a,b)=>a-b);
+  S("printSheet").innerHTML = head
+    +'<table border="1" style="border-collapse:collapse;width:100%"><thead><tr>'
+    +'<th>Sl</th><th>Mark</th><th>Shape (mm)</th><th>Dia</th><th>Spacing</th><th>Mem</th><th>Bars/mem</th><th>Total</th><th>Laps</th>'
+    +'<th>Cut len (m)</th><th>Total (m)</th><th>kg/m</th><th>Wt (kg)</th><th>Payable (kg)</th><th>Remarks</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="10" style="text-align:right"><b>Totals</b></td><td><b>'+totLen.toFixed(1)+'</b></td><td></td>'
+    +'<td><b>'+totWt.toFixed(0)+'</b></td><td><b>'+totPay.toFixed(0)+'</b></td><td></td></tr></tfoot></table>'
+    +'<p><b>Dia-wise (incl. laps):</b> '+dias.map(d=>'Ø'+d+': '+byDia[d].toFixed(0)+' kg').join('  |  ')
+    +'<br><b>Payable (MoRTH Cl.1608, excl. laps): '+(totPay/1000).toFixed(3)+' t</b> · '
+    +'<b>Procurement (incl. laps + '+num(s.wastage)+'% wastage'+(num(s.rollm)?', '+s.rollm+'% RM':'')+'): '+(proc/1000).toFixed(3)+' t</b>'
+    +'<br>* = laps auto-inserted for 12 m stock. Cutting lengths rounded up to 25 mm (IS 2502 Cl. 5.1.1). DRAFT — verify against approved BBS.</p>'
+    +'<table style="width:100%;margin-top:14px"><tr>'
+    +'<td style="width:33%">Prepared by: '+esc(m.preparedBy)+'<br><br>____________________</td>'
+    +'<td style="width:33%">Checked by: '+esc(m.checkedBy)+'<br><br>____________________</td>'
+    +'<td>Approved (Engineer):<br><br>____________________</td></tr></table>';
+}
+
+/* ============ EXPORT / IMPORT ============ */
+function download(name, content, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], {type})); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function exportCSV() {
+  const q = v => '"' + String(v==null?"":v).replace(/"/g,'""') + '"';
+  let csv = ["Sl,Mark,Shape,Dia(mm),Spacing,Members,Bars/mem,Total bars,Laps,Cut length(mm),Total(m),Unit(kg/m),Weight(kg),Payable(kg),Remarks"];
+  const byDia = {}; let totWt=0, totPay=0;
+  state.bars.forEach((r,i) => { const c = calcRow(r);
+    csv.push([i+1, q(r.mark), q(SHAPES[r.shape].label), c.d, r.spacing, Math.max(num(r.members),1), c.perMem, c.total,
+      c.laps, Math.round(c.CL), c.totLen.toFixed(1), c.u.toFixed(3), c.wt.toFixed(1), c.payWt.toFixed(1), q(r.remarks)].join(","));
+    if (c.d && c.total) { byDia[c.d]=(byDia[c.d]||0)+c.wt; totWt+=c.wt; totPay+=c.payWt; } });
+  csv.push("");
+  Object.keys(byDia).sort((a,b)=>a-b).forEach(d => csv.push("Dia "+d+" mm total (kg),"+byDia[d].toFixed(1)));
+  const proc = totWt*(1+num(state.set.wastage)/100)*(1+num(state.set.rollm)/100);
+  csv.push("PAYABLE total kg (MoRTH 1608 excl laps),"+totPay.toFixed(1));
+  csv.push("PROCUREMENT total kg (incl laps+wastage+RM),"+proc.toFixed(1));
+  download("BBS-P355-pier-cap.csv", "\uFEFF"+csv.join("\r\n"), "text/csv;charset=utf-8");
+}
+function exportJSON() { download("BBS-P355-project.json", JSON.stringify(state,null,1), "application/json"); }
+function importJSON(inp) {
+  const f = inp.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { try {
+      const s = JSON.parse(rd.result);
+      if (!s || s.version !== 2 || !Array.isArray(s.bars)) throw new Error("not a BBS project file");
+      state = s; metaPanel(); setPanel(); buildTable();
+    } catch(e) { alert("Could not load: "+e.message); } inp.value = ""; };
+  rd.readAsText(f);
+}
+
+/* ============ INIT ============ */
+if (!state.meta.date) state.meta.date = new Date().toLocaleDateString("en-IN");
+metaPanel(); setPanel(); buildTable();
+</script>
+</body>
+</html>
