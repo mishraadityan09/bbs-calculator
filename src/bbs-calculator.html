@@ -59,6 +59,15 @@
   .tourCard button.primary { background: #1a6b1a; color: #fff; border-color: #1a6b1a; }
   .tourFlash { animation: tflash 0.9s; }
   @keyframes tflash { 0% { background: #ffc400; } 100% { background: inherit; } }
+  /* PDF read modal */
+  .pdfBack { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 903; }
+  .pdfModal { position: fixed; z-index: 904; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    background: #fff; border: 1px solid #999; border-radius: 10px; padding: 14px 16px;
+    width: min(640px, 94vw); max-height: 84vh; overflow: auto; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+  .pdfModal h3 { margin: 0 0 8px; font-size: 15px; }
+  .pdfModal table { font-size: 12px; margin: 6px 0; }
+  .pdfModal .hint2 { font-size: 11.5px; color: #666; }
+  .pdfModal label.inline { display: inline; font-size: 12.5px; color: #222; }
   @media (max-width: 900px) { .swipeHint { display: block; } }
   @media (max-width: 600px) {
     body { margin: 8px; }
@@ -197,6 +206,10 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
     • Steel price: put your rate in <b>₹/kg</b> and the procurement card shows cost.<br>
     • Different structure entirely? Change the Project header, delete rows, add your own — the engine is generic.
   </div></details>
+  <details><summary>📄 Read PDF (beta) — what it can and can't do</summary><div class="body">
+    Upload the drawing PDF and the tool reads its <b>text layer</b>: the reinforcement table (bar marks, diameters, counts, spacing, shape hints like 2L/12L) and the notes (clear cover, lap rules, concrete/steel grade). You get a <b>review screen</b> first — nothing applies until you tick and confirm, and every applied value lands <b style="background:#fff8d6;padding:0 3px">yellow</b> with a "PDF-read — verify" remark.<br>
+    <b>It cannot</b> read dimensions off the drawing geometry (which line is 3400 vs 2500), bar shapes, or zone extents — those still come from your eyes. A future 🤖 AI-read upgrade is planned for that. Scanned/photographed PDFs have no text layer and won't work. This feature needs internet once (to load the PDF reader library); everything else in the tool stays offline.
+  </div></details>
   <details><summary>Saving, sharing and printing</summary><div class="body">
     • The tool <b>autosaves in this browser</b> — close and reopen, your data is there. (Clearing browser data erases it!)<br>
     • <b>⬇ Save project file</b> downloads a .json you can WhatsApp to anyone — they open this same HTML and use <b>⬆ Load project file</b>. That's how we exchange updates without touching code.<br>
@@ -245,6 +258,8 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
   <div style="margin-top:8px">
     <button id="addBtn" onclick="addRow()">+ Add bar</button>
     <button onclick="startTour()" style="background:#1a6b1a;color:#fff;border-color:#1a6b1a">▶ Tutorial</button>
+    <button onclick="document.getElementById('pdfFile').click()">📄 Read PDF (beta)</button>
+    <input type="file" id="pdfFile" accept=".pdf,application/pdf" style="display:none" onchange="readPdf(this)">
     <button onclick="window.print()">🖨 Print BBS sheet</button>
     <button onclick="exportCSV()">⬇ CSV (Excel)</button>
     <button onclick="exportJSON()">⬇ Save project file</button>
@@ -727,6 +742,183 @@ function endTour() {
   if (i >= 0) state.bars.splice(i, 1);
   tourRow = null;
   buildTable();
+}
+
+/* ============ PDF READ (Phase 1: text-layer extraction) ============ */
+const PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+const DIAS = [8,10,12,16,20,25,28,32,36,40];
+function loadPdfJs() {
+  return new Promise((res, rej) => {
+    if (window.pdfjsLib) return res();
+    const sc = document.createElement("script");
+    sc.src = PDFJS_URL;
+    sc.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_URL.replace("pdf.min.js","pdf.worker.min.js"); res(); };
+    sc.onerror = () => rej(new Error("Could not load the PDF reader — this feature needs internet once. Values can be entered manually meanwhile."));
+    document.head.appendChild(sc);
+    setTimeout(() => rej(new Error("PDF reader load timed out — check your connection and retry.")), 15000);
+  });
+}
+// visual coords (origin top-left, y down) from PDF user-space, per page rotation
+function visXY(x, y, rot, pw, ph) {
+  switch (((rot % 360) + 360) % 360) {
+    case 90:  return [pw - y, x];
+    case 180: return [pw - x, y];
+    case 270: return [ph - y, pw - x];
+    default:  return [x, ph - y];
+  }
+}
+async function extractPdf(buf) {
+  await loadPdfJs();
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const [, , pw, ph] = page.view;
+    const tc = await page.getTextContent();
+    const items = tc.items.map(it => {
+      const [vx, vy] = visXY(it.transform[4], it.transform[5], page.rotate, pw, ph);
+      return { s: it.str.trim(), vx, vy };
+    }).filter(it => it.s);
+    pages.push(items);
+  }
+  // reading-order text (sort by visual row, then column) — stream order is scrambled
+  const allText = pages.map(its => its.slice()
+    .sort((a, b) => (Math.round(a.vy/4) - Math.round(b.vy/4)) || (a.vx - b.vx))
+    .map(i => i.s).join(" ")).join("\n");
+  if (!allText.trim()) throw new Error("This PDF has no text layer (scanned/photo PDF?) — text extraction can't read it. The planned AI-read upgrade will handle scans.");
+  const tables = pages.map((its, ix) => parseBarTable(its, ix + 1)).filter(t => t && t.bars.length);
+  return { tables, meta: parseNotes(allText), hints: dimHints(allText) };
+}
+function parseBarTable(items, pageNo) {
+  const anchor = items.find(i => /^(BAR\s+)?MARKED$/i.test(i.s));
+  if (!anchor) return null;
+  const hdr = {};
+  items.forEach(i => {
+    if (Math.abs(i.vy - anchor.vy) > 40) return;
+    if (/^(BAR\s+)?MARKED$/i.test(i.s)) hdr.mark = i.vx;
+    else if (/^DIA/i.test(i.s)) hdr.dia = i.vx;
+    else if (/^NOS/i.test(i.s)) hdr.nos = i.vx;
+    else if (/^SPACING|^c\/c/i.test(i.s)) hdr.spc = i.vx;
+    else if (/^SHAPE$/i.test(i.s)) hdr.shape = i.vx;
+  });
+  if (hdr.dia == null) return null;
+  const stop = items.filter(i => /^NOTES/i.test(i.s) && i.vy > anchor.vy)
+    .sort((a, b) => a.vy - b.vy)[0];
+  const band = items.filter(i =>
+    i.s.length <= 24 &&  // table cells are short tokens; longer strings are note sentences
+    i.vy > anchor.vy + 12 && (!stop || i.vy < stop.vy - 5) &&
+    i.vx > (hdr.mark ?? anchor.vx) - 40 && i.vx < (hdr.shape ?? hdr.spc ?? anchor.vx + 400) + 220
+  ).sort((a, b) => a.vy - b.vy || a.vx - b.vx);
+  const rows = [];
+  band.forEach(i => {
+    const row = rows.find(r => Math.abs(r.vy - i.vy) < 7);
+    row ? (row.cells.push(i), row.vy = (row.vy + i.vy) / 2) : rows.push({ vy: i.vy, cells: [i] });
+  });
+  const nearest = (x) => Object.keys(hdr).reduce((b, k) => Math.abs(x - hdr[k]) < Math.abs(x - hdr[b]) ? k : b, "mark");
+  const out = [];
+  rows.forEach(r => {
+    const bar = { shape: "" };
+    r.cells.sort((a, b) => a.vx - b.vx).forEach(c => {
+      const col = nearest(c.vx), n = parseInt(c.s, 10);
+      if (col === "mark" && /^\d{1,2}[a-z]?$/i.test(c.s) && !bar.mark) bar.mark = c.s;
+      else if (col === "dia" && DIAS.includes(n)) bar.dia = n;
+      else if (col === "nos" && n > 0) bar.nos = n;
+      else if (col === "spc" && n > 0) bar.spc = n;
+      else if (col === "shape") bar.shape = (bar.shape + " " + c.s).trim().slice(0, 16);
+      else if (DIAS.includes(n) && bar.mark && bar.dia == null) bar.dia = n; // dia drifted between columns
+    });
+    if (bar.mark && bar.dia) out.push(bar);
+  });
+  const ctx = items.find(i => /PIER CAP|PEDESTAL|DIAPHRAGM|DECK SLAB|CROSS GIRDER|PILE/i.test(i.s));
+  return { page: pageNo, label: "Page " + pageNo + (ctx ? " — " + ctx.s.slice(0, 48) : ""), bars: out };
+}
+function parseNotes(t) {
+  // some lines arrive glyph-fragmented — match spaced text first, then a space-stripped copy
+  const flat = t.replace(/\s+/g, "");
+  const pick = (rs, rf) => t.match(rs) || flat.match(rf);
+  const m = {};
+  let x;
+  if ((x = pick(/CLEAR\s+COVER[^0-9]{0,60}?(\d{2,3})\s*mm/i, /CLEARCOVER[^0-9]{0,40}?(\d{2,3})mm/i))) m.cover = +x[1];
+  if ((x = pick(/LAP\s+LENGTH[^0-9]{0,50}?(\d{2,3})\s*x\s*d/i, /LAPLENGTH[^0-9]{0,40}?(\d{2,3})xd/i))) m.lap = +x[1];
+  if ((x = pick(/BAR\s+MARK\s*\(?\s*(\d+\w*)\s*\)?\s*MINIMUM\s+LAP\s+LENGTH[^0-9]{0,30}?(\d{2,3})\s*x\s*d/i,
+                /BARMARK\(?(\d+[a-z]?)\)?MINIMUMLAPLENGTH[^0-9]{0,20}?(\d{2,3})xd/i))) m.lapMark = { mark: x[1], f: +x[2] };
+  if ((x = pick(/CONCRETE[^.]{0,60}?\bM\s*(\d{2})\b/i, /CONCRETE[^.]{0,40}?M(\d{2})/i))) m.concrete = "M" + x[1];
+  if ((x = pick(/Fe\s*:?\s*(\d{3}\s*D?)/i, /Fe:?(\d{3}D?)/i))) m.steel = "Fe" + x[1].replace(/\s/g, "");
+  if ((x = t.match(/\b([A-Z]{2,4}(?:-[A-Z0-9]{2,6}){2,})\b/))) m.drawing = x[1];
+  return m;
+}
+function dimHints(t) {
+  const freq = {};
+  (t.match(/\b\d{4,5}\b/g) || []).forEach(n => { if (+n >= 1000 && +n <= 60000) freq[n] = (freq[n] || 0) + 1; });
+  return Object.keys(freq).sort((a, b) => freq[b] - freq[a]).slice(0, 8);
+}
+let pdfExtract = null;
+async function readPdf(inp) {
+  const f = inp.files[0]; inp.value = "";
+  if (!f) return;
+  try {
+    const res = await extractPdf(await f.arrayBuffer());
+    openReview(res, f.name);
+  } catch (e) { alert(e.message || e); }
+}
+function openReview(res, fname) {
+  pdfExtract = res;
+  const meta = res.meta, mRows = [];
+  if (meta.cover) mRows.push(["cover", "Clear cover → header", meta.cover + " mm"]);
+  if (meta.lap) mRows.push(["lap", "Lap basis → header", meta.lap + "d" + (meta.lapMark ? " / " + meta.lapMark.f + "d (mark " + meta.lapMark.mark + ")" : "")]);
+  if (meta.concrete) mRows.push(["concrete", "Concrete grade → header", meta.concrete]);
+  if (meta.steel) mRows.push(["steel", "Steel grade → header", meta.steel + " (IS:1786)"]);
+  if (meta.drawing) mRows.push(["drawing", "Drawing no. → header", meta.drawing]);
+  const back = document.createElement("div"); back.className = "pdfBack"; back.id = "pdfBack";
+  const mod = document.createElement("div"); mod.className = "pdfModal"; mod.id = "pdfModal";
+  mod.innerHTML = "<h3>📄 Found in " + esc(fname || "PDF") + " — tick what to apply</h3>"
+    + '<div class="hint2">Everything applied lands <b style="background:#fff8d6;padding:0 2px">yellow</b> = verify against the drawing. Dimensions/shapes are NOT read — fill those by hand.</div>'
+    + (res.tables.length ? res.tables.map((tb, t) =>
+        '<div style="margin-top:8px"><label class="inline"><input type="checkbox" onchange="document.querySelectorAll(\'.pdfBar[data-t=&quot;' + t + '&quot;]\').forEach(c=>c.checked=this.checked)"> <b>' + esc(tb.label) + '</b> — tick to take this sheet\'s table</label></div>'
+        + '<table border="1" style="border-collapse:collapse"><tr><th></th><th>Mark</th><th>Dia</th><th>Nos</th><th>Spacing</th><th>Shape hint</th><th>Action</th></tr>'
+        + tb.bars.map((b, i) => {
+            const ex = state.bars.some(r => String(r.mark).trim().toLowerCase() === String(b.mark).toLowerCase());
+            return "<tr><td><input type='checkbox' class='pdfBar' data-t='" + t + "' data-i='" + i + "'></td><td>" + esc(b.mark) + "</td><td>" + b.dia + "</td><td>"
+              + (b.nos || "—") + "</td><td>" + (b.spc || "—") + "</td><td>" + esc(b.shape || "—") + "</td><td>" + (ex ? "update row" : "NEW row") + "</td></tr>";
+          }).join("") + "</table>").join("")
+      : "<p>No reinforcement table found in the text layer.</p>")
+    + (mRows.length ? mRows.map(r => "<div><label class='inline'><input type='checkbox' class='pdfMeta' data-k='" + r[0] + "' checked> " + r[1] + ": <b>" + esc(r[2]) + "</b></label></div>").join("") : "")
+    + (res.hints.length ? '<div class="hint2" style="margin-top:6px">Large dimensions found in the PDF (for filling A/B/Run by hand): ' + res.hints.join(", ") + "</div>" : "")
+    + '<div style="margin-top:10px;text-align:right"><button onclick="closeReview()">Cancel</button><button style="background:#1a6b1a;color:#fff;border-color:#1a6b1a" onclick="applyExtract()">Apply selected</button></div>';
+  document.body.append(back, mod);
+}
+function closeReview() { document.getElementById("pdfBack")?.remove(); document.getElementById("pdfModal")?.remove(); pdfExtract = null; }
+function applyExtract() {
+  const res = pdfExtract, mod = document.getElementById("pdfModal");
+  const NOTE = "PDF-read — verify";
+  mod.querySelectorAll(".pdfBar:checked").forEach(cb => {
+    const b = res.tables[+cb.dataset.t].bars[+cb.dataset.i];
+    let r = state.bars.find(r => String(r.mark).trim().toLowerCase() === String(b.mark).toLowerCase());
+    if (!r) {
+      const legs = (b.shape.match(/(\d+)\s*L/i) || [])[1];
+      r = { mark: b.mark, shape: legs ? "stirrup" : "straight", dims: legs ? {A:"",B:""} : {A:""}, dia: b.dia,
+        hooks: legs ? 2 : 0, spacing: b.spc || "", run: "", members: legs ? Math.max(1, Math.round(legs/2)) : 1,
+        barsPer: b.nos || 1, laps: legs ? "0" : "", lapF: (res.meta.lapMark && res.meta.lapMark.mark == b.mark) ? res.meta.lapMark.f : (res.meta.lap || 35),
+        seg: "", b45:0, b90:0, b135:0, b180:0, remarks: "", a: { dims:1, barsPer:1 } };
+      state.bars.push(r);
+    }
+    r.a = r.a || {};
+    if (b.dia) { r.dia = b.dia; r.a.dia = 1; }
+    if (b.spc) { r.spacing = b.spc; r.a.spacing = 1; }
+    if (b.nos) { r.barsPer = b.nos; r.a.barsPer = 1; }
+    if (res.meta.lapMark && res.meta.lapMark.mark == b.mark) r.lapF = res.meta.lapMark.f;
+    if (!String(r.remarks).includes(NOTE)) r.remarks = (r.remarks ? r.remarks + " " : "") + "[" + NOTE + (b.shape ? "; shape col: " + b.shape : "") + "]";
+  });
+  mod.querySelectorAll(".pdfMeta:checked").forEach(cb => {
+    const k = cb.dataset.k, m = res.meta;
+    if (k === "cover") state.meta.cover = m.cover + " mm";
+    if (k === "lap") state.meta.lapbasis = m.lap + "d" + (m.lapMark ? " / " + m.lapMark.f + "d (mark " + m.lapMark.mark + ")" : "");
+    if (k === "concrete") state.meta.concrete = m.concrete;
+    if (k === "steel") state.meta.steel = m.steel + " (IS:1786)";
+    if (k === "drawing") state.meta.drawing = m.drawing;
+  });
+  closeReview();
+  metaPanel(); buildTable();
 }
 
 /* ============ INIT ============ */
