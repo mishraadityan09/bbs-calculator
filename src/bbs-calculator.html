@@ -154,6 +154,18 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
     4. Side bars 3 / 3a: enter each zone depth in <b>Run</b> (spacing 135 is already set, Members = 2 faces).<br>
     5. Add the missing bars (3b, 4, 4a, M1/M2 mesh) with <b>+ Add bar</b> when you have sheets 7–11.
   </div></details>
+  <details><summary>Choosing from the Shape dropdown</summary><div class="body">
+    Match the bar's sketch in the drawing's shape column to a preset — the dropdown then shows only the dimensions that shape needs, applies the right bend deductions automatically, and pre-fills the usual hooks:<br>
+    • Plain bar, no bends → <b>Straight</b> (just A).<br>
+    • One end bent 90° (L shape) → <b>L-bend</b> (A = long leg, B = bent leg).<br>
+    • Both ends bent 90° — like <b>bars 1, 3, 3a here</b> (long bar with 650 or 300 downstands) → <b>U / end-bends</b> (A = run, B and C = the two end legs).<br>
+    • Bar stepping up/down at 45° (bent-up slab bar, column crank) → <b>Crank</b> (A = total run, D = crank depth; the 0.42D rule is applied for you).<br>
+    • Closed rectangle with hook marks — <b>stirrups 5 and 5a here</b> → <b>Closed stirrup</b> (A × B out-to-out = member size − 2×cover; 2 hooks + 3×90° + 2×135° automatic).<br>
+    • Round link in a circular pier/pile → <b>Circular ring</b> (D = core diameter); continuous coil → <b>Spiral/helix</b> (D, pitch P, height H).<br>
+    • Support stool between top and bottom mats → <b>Chair</b> (A = head, B = height, C = legs).<br>
+    • Anything else — like <b>bar 2 here</b> (bottom bar following the tapered soffit) → <b>Custom segments</b>: type each leg length comma-separated and set the bend counts yourself.<br>
+    Switching shape keeps the rest of the row (dia, spacing, counts, laps) — only the dimension fields change. The sketch redraws instantly so you can see you picked right.
+  </div></details>
   <details><summary>Changing a rule (lap, hook, wastage, rate…)</summary><div class="body">
     • All rules live in <b>Settings</b> — hover a label to read what it controls. Nothing is hidden in code.<br>
     • Per-bar lap rule: the <b>Lap ×dia</b> cell on each row (50 for top mark 1, 35 for others, per drawing note 6).<br>
