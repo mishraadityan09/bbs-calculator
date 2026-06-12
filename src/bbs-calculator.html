@@ -95,6 +95,14 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
     • <b>Bend deductions</b> (because outer dimensions overlap at each corner): 45°→1d, 90°→2d, 135°→3d, 180°→4d (SP-34 site convention, sharp-edge method). Each shape applies its own bend counts automatically; the Custom shape lets you set them by hand.<br>
     • <b>Laps</b>: leave the Laps cell <b>blank</b> and the tool auto-inserts laps when the bar is longer than the stock length: pieces = 1 + ⌈(L − stock)/(stock − lap)⌉. Auto values show with a <b>*</b>. Type a number to override. Lap length = lap factor × dia.
   </div></details>
+  <details><summary>📐 Tutorial — "find the total bar length in Section C-C" (the full problem)</summary><div class="body">
+    This is the complete workflow from drawing to answer — the way the prefilled table was built.<br><br>
+    <b>Step 1 — Get the geometry from the dimension sheet (PDF page 1).</b> Section C-C itself shows no sizes; View B-B and the plan give them: cap cross-section at the pier = <b>3400 wide × 2500 deep</b> (the "3.4 m × 2.5 m"), cap length = 11,250 + 2,900 + 11,250 = <b>25,400</b>. The notes give clear cover <b>45 mm</b>, lap 35d (50d for mark 1), M60/Fe500D.<br><br>
+    <b>Step 2 — List the bars that Section C-C cuts (PDF page 6).</b> The reinforcement table gives mark, dia, spacing and counts — but NO lengths (that's the work): mark 1 (25Ø × 31, top), 2 (20Ø × 31, bottom), 3 / 3a (20Ø @135 side faces), 5 / 5a (20Ø @175 stirrups). Longitudinal bars (1, 2, 3, 3a) take their length from the 25,400 cap length; stirrups (5, 5a) take theirs from the 3400 × 2500 section.<br><br>
+    <b>Step 3 — Compute each cutting length</b> (full arithmetic in the next Tutorial section): mark 1 → 29,025 · mark 2 → 28,225 · marks 3/3a → 27,250 · mark 5 → 11,600 · mark 5a → 5,600 mm.<br><br>
+    <b>Step 4 — Multiply by bar counts and add up.</b> That is exactly what the table below does live: ≈ <b>3,633 m total bar length ≈ 10.2 t</b> of steel for the Section C-C bars.<br><br>
+    <b>Step 5 — Verify the assumptions.</b> The yellow counts (stirrup sets, side-bar numbers, link widths) are placeholders until the sheet-10 zone dimensions are entered — the total moves with them. White cells are read straight off the drawing.
+  </div></details>
   <details><summary>📝 Tutorial — full worked example, step by step</summary><div class="body">
     <b>Example 1 — Stirrup mark 5 (20Ø closed stirrup), exactly as the tool computes it:</b><br>
     1. From page 1 (View B-B): pier cap section at the pier = 3400 wide × 2500 deep. Clear cover 45 mm (note 5).<br>
