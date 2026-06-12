@@ -48,6 +48,17 @@
   #warnList { font-size: 12px; color: #b00; }
   svg.shape { background: #fff; }
   #printSheet { display: none; }
+  /* guided tutorial */
+  .tourRing { position: fixed; z-index: 901; border: 3px solid #ffc400; border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.45); pointer-events: none; transition: all .25s; }
+  .tourCard { position: fixed; z-index: 902; left: 50%; transform: translateX(-50%); bottom: 14px;
+    background: #fff; border: 1px solid #999; border-radius: 10px; padding: 12px 14px;
+    width: min(440px, 94vw); box-shadow: 0 6px 24px rgba(0,0,0,.35); font-size: 13px; line-height: 1.45; }
+  .tourCard .step { color: #777; font-size: 11px; margin-bottom: 4px; }
+  .tourCard .btns { margin-top: 10px; text-align: right; }
+  .tourCard button.primary { background: #1a6b1a; color: #fff; border-color: #1a6b1a; }
+  .tourFlash { animation: tflash 0.9s; }
+  @keyframes tflash { 0% { background: #ffc400; } 100% { background: inherit; } }
   @media (max-width: 900px) { .swipeHint { display: block; } }
   @media (max-width: 600px) {
     body { margin: 8px; }
@@ -160,6 +171,7 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
 <div class="panel">
   <h2>📘 Guide — how to use &amp; make changes (no coding needed)</h2>
   <details open><summary>First time / checking the P355 numbers</summary><div class="body">
+    0. <b>Prefer watching it live?</b> Press the green <b>▶ Tutorial</b> button under the bars table — it builds a stirrup in front of you, filling every value step by step and ending where the result appears.<br>
     1. Every <b>white</b> cell was read from drawing SPS-P355-VIA-SD; every <b style="background:#fff8d6;padding:0 3px">yellow</b> cell is an assumption — fix those first.<br>
     2. From <b>sheet 10 plan</b>, find the stirrup zone lengths: type each zone's length into the <b>Run</b> cell of bars 5 / 5a — the bar count then computes itself from the @175 spacing (the Bars/mem cell locks automatically when Run + Spacing are filled).<br>
     3. From <b>Section C-C</b>, count/measure the 5a internal link widths and replace the assumed 300 in dimension A.<br>
@@ -231,7 +243,8 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
   </table>
   </div>
   <div style="margin-top:8px">
-    <button onclick="addRow()">+ Add bar</button>
+    <button id="addBtn" onclick="addRow()">+ Add bar</button>
+    <button onclick="startTour()" style="background:#1a6b1a;color:#fff;border-color:#1a6b1a">▶ Tutorial</button>
     <button onclick="window.print()">🖨 Print BBS sheet</button>
     <button onclick="exportCSV()">⬇ CSV (Excel)</button>
     <button onclick="exportJSON()">⬇ Save project file</button>
@@ -630,6 +643,90 @@ function importJSON(inp) {
       state = s; metaPanel(); setPanel(); buildTable();
     } catch(e) { alert("Could not load: "+e.message); } inp.value = ""; };
   rd.readAsText(f);
+}
+
+/* ============ GUIDED TOUR ============ */
+let tourRow = null, tourStep = 0, tourRing = null, tourCard = null, tourTarget = null;
+const tourIdx = () => state.bars.indexOf(tourRow);
+const tourTr = () => document.querySelectorAll("#bars tbody tr")[tourIdx()];
+function tflash(el) { if (!el) return; el.classList.add("tourFlash"); setTimeout(() => el.classList.remove("tourFlash"), 950); }
+function tourFill(el, val) { if (!el) return; el.value = val; el.dispatchEvent(new Event("input")); tflash(el); }
+
+const TOUR = [
+  { text: "<b>🎓 The original question:</b> “Find the total length of bars in Section C-C — take the dimensions from page 1: 3400 wide × 2500 deep.”<br><br>Let's answer it live: we'll build <b>stirrup mark 5</b> from a blank row and watch every value land where it belongs. Your existing data is not touched — the demo row removes itself at the end." },
+  { target: () => S("addBtn"),
+    text: "Every bar starts here. <b>Next</b> presses <b>+ Add bar</b> for you — a blank row will appear at the bottom of the table." },
+  { do: () => { addRow(); tourRow = state.bars[state.bars.length - 1]; tourRow.mark = "5-demo"; buildTable(); tflash(tourTr().querySelector("input")); },
+    target: () => tourTr().querySelector("select"),
+    text: "Row <b>5-demo</b> added. In the drawing's shape column, mark 5 is a closed rectangle with hook ticks → that's <b>Closed stirrup</b> in this dropdown. <b>Next</b> selects it." },
+  { do: () => { changeShape(tourIdx(), "stirrup"); tflash(tourTr().querySelector("select")); },
+    target: () => tourTr().querySelectorAll("td.dims input")[0],
+    text: "Stirrup selected — the sketch appeared and only the dimensions a stirrup needs (A, B) are shown. Hooks pre-set to 2.<br><b>A = breadth − 2×cover = 3400 − 90 = 3310</b> (breadth from page 1, cover from notes). <b>Next</b> fills it." },
+  { do: () => tourFill(tourTr().querySelectorAll("td.dims input")[0], 3310),
+    target: () => tourTr().querySelectorAll("td.dims input")[1],
+    text: "A = 3310 filled — see the sketch label update. Same for the depth: <b>B = 2500 − 90 = 2410</b>. <b>Next</b> fills it." },
+  { do: () => tourFill(tourTr().querySelectorAll("td.dims input")[1], 2410),
+    target: () => tourTr().querySelector("td:nth-child(5) input"),
+    text: "The page-6 bar table says mark 5 is <b>20 mm dia</b>. <b>Next</b> fills it — watch the cutting length further right come alive." },
+  { do: () => tourFill(tourTr().querySelector("td:nth-child(5) input"), 20),
+    target: () => tourTr().querySelector("td:nth-child(6) input"),
+    text: "Hooks: already <b>2</b> (set automatically with the stirrup shape). Each hook adds 10×dia = 200 mm — that rule is editable in Settings." },
+  { target: () => S("cl" + tourIdx()),
+    text: "Here is the computed <b>cutting length: 11,600 mm</b> = 2×(3310+2410) + 400 hooks − 240 bend deductions. It recomputes instantly if you change anything." },
+  { target: () => tourTr().querySelector("td:nth-child(7) input"),
+    text: "Now the count. The drawing says stirrups are <b>@175 c/c</b>. <b>Next</b> fills the spacing." },
+  { do: () => tourFill(tourTr().querySelector("td:nth-child(7) input"), 175),
+    target: () => tourTr().querySelector("td:nth-child(8) input"),
+    text: "And the zone length over which they run — say sheet 10 gives <b>2810 mm</b>. <b>Next</b> fills it and the bar count computes itself." },
+  { do: () => tourFill(tourTr().querySelector("td:nth-child(8) input"), 2810),
+    target: () => S("tc" + tourIdx()),
+    text: "Total bars = ⌈2810 ÷ 175⌉ + 1 = <b>18</b>, computed for you (Bars/mem locks while spacing+run drive the count)." },
+  { target: () => S("wt" + tourIdx()),
+    text: "And the weight: 18 bars × 11.600 m × 2.47 kg/m = <b>516 kg</b> (procurement basis; the Payable column beside it excludes laps — same here, stirrups have none)." },
+  { target: () => document.querySelector("#bars tfoot"),
+    text: "Every row adds up <b>here</b> — TOTAL bar length (m) and weight (kg) for all Section C-C bars together. This row IS the answer to the original question." },
+  { target: () => S("summary"),
+    text: "And the result in money terms: <b>PAYABLE</b> (MoRTH billing, excl. laps) vs <b>PROCUREMENT</b> (what you order, incl. laps + wastage; ₹ if a rate is set). The cutting plan below says how many 12 m bars to buy.<br><br><b>Finish</b> removes the 5-demo row and returns your table exactly as it was." },
+];
+
+function tourRepos() { if (tourTarget && tourTarget.isConnected) ringTo(tourTarget); }
+function ringTo(el) {
+  const r = el.getBoundingClientRect();
+  tourRing.style.display = "block";
+  tourRing.style.left = (r.left - 6) + "px"; tourRing.style.top = (r.top - 6) + "px";
+  tourRing.style.width = (r.width + 12) + "px"; tourRing.style.height = (r.height + 12) + "px";
+}
+function tourShow(n) {
+  tourStep = n;
+  const st = TOUR[n];
+  if (st.do) st.do();
+  tourCard.innerHTML = '<div class="step">Step ' + (n + 1) + " of " + TOUR.length + '</div><div>' + st.text + '</div>'
+    + '<div class="btns"><button onclick="endTour()">Exit</button>'
+    + '<button class="primary" onclick="tourNext()">' + (n === TOUR.length - 1 ? "✓ Finish" : "Next ▶") + '</button></div>';
+  tourTarget = st.target ? st.target() : null;
+  if (tourTarget) {
+    tourTarget.scrollIntoView({ block: "center", inline: "center" });
+    requestAnimationFrame(tourRepos);
+  } else tourRing.style.display = "none";
+}
+function tourNext() { tourStep === TOUR.length - 1 ? endTour() : tourShow(tourStep + 1); }
+function startTour() {
+  if (tourCard) return;
+  tourRing = document.createElement("div"); tourRing.className = "tourRing"; tourRing.style.display = "none";
+  tourCard = document.createElement("div"); tourCard.className = "tourCard"; tourCard.setAttribute("role", "dialog");
+  document.body.append(tourRing, tourCard);
+  document.addEventListener("scroll", tourRepos, true);
+  window.addEventListener("resize", tourRepos);
+  tourShow(0);
+}
+function endTour() {
+  document.removeEventListener("scroll", tourRepos, true);
+  window.removeEventListener("resize", tourRepos);
+  tourRing.remove(); tourCard.remove(); tourRing = tourCard = tourTarget = null;
+  const i = tourIdx();
+  if (i >= 0) state.bars.splice(i, 1);
+  tourRow = null;
+  buildTable();
 }
 
 /* ============ INIT ============ */
