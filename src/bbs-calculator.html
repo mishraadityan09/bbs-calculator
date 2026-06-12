@@ -132,6 +132,18 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
     • <b>Procurement weight</b> (blue card) = full cutting length incl. laps × count × unit mass, plus the wastage % and rolling-margin % from Settings. Use this for ordering steel.<br>
     Rolling margin: steel is billed between supplier and contractor on actual section weight; IS 1786 allows ±3% (bars &gt;16 mm), ±5% (12–16), ±7% (≤10). Enter your measured margin % (negative = rolls light) to adjust the procurement tonnage.
   </div></details>
+  <details><summary>💰 Price calculation — worked example</summary><div class="body">
+    Two different money numbers come out of the same BBS, and confusing them is how contractors lose money:<br><br>
+    <b>1. What you PAY the steel supplier (procurement cost)</b><br>
+    = procurement weight × purchase rate.<br>
+    Procurement weight = total cutting length incl. laps × unit mass, + wastage %, ± rolling margin %.<br>
+    With this table: 10,216 kg + 3% wastage = <b>10,522 kg</b>. At ₹62/kg → <b>≈ ₹6,52,000</b> (the blue card computes this live once you enter your rate).<br><br>
+    <b>2. What the client PAYS YOU (item-rate/BOQ contract, MoRTH Cl. 1608)</b><br>
+    = payable weight × BOQ rate. Payable weight excludes laps, wastage, binding wire, chairs — here <b>9,672 kg</b>. At the same ₹62 → ≈ ₹5,99,000.<br><br>
+    <b>3. The gap is yours to absorb</b> — here ≈ 850 kg ≈ <b>₹53,000 on these bars alone</b>: lap steel (~544 kg), wastage (~306 kg), plus binding wire (figure ~7–13 kg per tonne) and chairs. A BOQ rate must be quoted high enough to swallow this; that's why lap counts and the cutting plan matter financially.<br><br>
+    <b>Rolling margin:</b> suppliers bill by actual weighbridge weight, but bars rarely weigh exactly d²/162. Weigh 1 m samples per diameter per lot; if they run 2% light, enter −2 in Settings → the tool buys 2% fewer kg for the same metres (IS 1786 allows ±3% for bars over 16 mm). Whoever ignores rolling margin gifts that percentage to the other party.<br><br>
+    <b>Cutting plan savings:</b> the optimizer at the bottom shows waste % per diameter. Every 1% of waste avoided on this cap ≈ 100 kg ≈ ₹6,200 — usually the difference between cutting bars in a planned sequence vs ad-hoc.
+  </div></details>
   <details><summary>Unit weight</summary><div class="body">
     Default uses the <b>IS 1786 Table 1 nominal masses</b> (8:0.395, 10:0.617, 12:0.885, 16:1.58, 20:2.47, 25:3.85, 28:4.83, 32:6.31, 36:7.99, 40:9.86 kg/m) — the values billing must use. Untick the toggle to fall back to d²/162 for odd diameters.
   </div></details>
