@@ -15,7 +15,7 @@ A free, offline, single-file Bar Bending Schedule (BBS) calculator for Indian co
 - **Audit warnings** — laps on >32 mm bars (use couplers, IRC:112 15.2.6), bars longer than stock without laps, duplicate marks
 - **Formal A4-landscape print sheet** with project header, dia-wise summary and signature blocks
 - **CSV export** for Excel, JSON project save/load
-- Every rule is editable in Settings; built-in Help (formulas with code clauses) and a step-by-step usage Guide — no coding needed to adapt it
+- Every rule is editable in Settings; built-in Help (formulas with code clauses), a 📝 step-by-step worked tutorial (hand calculation matching the tool digit for digit), and a 📘 usage Guide — no coding needed to adapt it
 
 ## Disclaimer
 

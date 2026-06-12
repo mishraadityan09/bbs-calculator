@@ -95,6 +95,25 @@ Open the <b>Help</b> section below to see exactly how every number is calculated
     • <b>Bend deductions</b> (because outer dimensions overlap at each corner): 45°→1d, 90°→2d, 135°→3d, 180°→4d (SP-34 site convention, sharp-edge method). Each shape applies its own bend counts automatically; the Custom shape lets you set them by hand.<br>
     • <b>Laps</b>: leave the Laps cell <b>blank</b> and the tool auto-inserts laps when the bar is longer than the stock length: pieces = 1 + ⌈(L − stock)/(stock − lap)⌉. Auto values show with a <b>*</b>. Type a number to override. Lap length = lap factor × dia.
   </div></details>
+  <details><summary>📝 Tutorial — full worked example, step by step</summary><div class="body">
+    <b>Example 1 — Stirrup mark 5 (20Ø closed stirrup), exactly as the tool computes it:</b><br>
+    1. From page 1 (View B-B): pier cap section at the pier = 3400 wide × 2500 deep. Clear cover 45 mm (note 5).<br>
+    2. Stirrup outer dimensions: A = 3400 − 2×45 = <b>3310</b>; B = 2500 − 2×45 = <b>2410</b>.<br>
+    3. Shape length = 2(A+B) = 2 × (3310+2410) = <b>11,440</b>.<br>
+    4. Hooks: 2 × max(10×20, 75) = 2 × 200 = <b>+400</b>.<br>
+    5. Bend deductions: 3 corners @90° = 3×2×20 = 120, plus 2 hook bends @135° = 2×3×20 = 120 → <b>−240</b>.<br>
+    6. Cutting length = 11,440 + 400 − 240 = <b>11,600 mm</b> (already a multiple of 25, so rounding changes nothing).<br>
+    7. Weight each = 11.600 m × 2.47 kg/m (IS 1786, Ø20) = <b>28.65 kg</b>. × 17 stirrups = 487 kg — the row's Weight cell.<br><br>
+    <b>Example 2 — Top bar mark 1 (25Ø), showing laps and payable weight:</b><br>
+    1. Run along cap = 25,400 − 2×45 = <b>25,310</b>; two 650 end bends (shape U): 25,310+650+650 = <b>26,610</b>.<br>
+    2. Deduct 2 bends @90° = 2×2×25 = <b>−100</b> → pre-lap length = 26,510.<br>
+    3. Longer than 12,000 stock → laps needed. Lap = 50×25 = 1,250. Pieces = 1 + ⌈(26,510−12,000)÷(12,000−1,250)⌉ = 3 → <b>2 laps = +2,500</b> (that's the 2* in the row).<br>
+    4. 26,510 + 2,500 = 29,010 → round up to 25 → <b>29,025 mm</b> cutting length.<br>
+    5. Weight = 29.025 × 3.85 (IS 1786, Ø25) = 111.75 kg each × 31 bars = <b>3,464 kg</b> (procurement).<br>
+    6. Payable (MoRTH 1608 — laps excluded): 26,510 → 26,525 rounded → × 31 × 3.85 = <b>3,166 kg</b>. That ~300 kg difference is steel the contractor buys but is never paid for.<br><br>
+    <b>Bar counts from spacing:</b> bars @135 c/c over a 910 zone = ⌈910÷135⌉ + 1 = 8 per face.<br><br>
+    <b>Now try it yourself:</b> change cover in Example 1 (edit A to 3300 for 50 mm cover) and watch the cutting length drop by 20 mm. Every cell recalculates live — that's the whole point.
+  </div></details>
   <details><summary>Lap factors for THIS project (35d / 50d) and IRC:112</summary><div class="body">
     Drawing note 6 says lap = 35d, and 50d for bar mark 1 (top bars). This matches IRC:112-2020 exactly: for Fe500D in M60, basic anchorage k = 25 (Table 15.4); with 50% bars lapped at a section ×1.4 → <b>35d</b> (favourable bond); top bars of a deep pour are "unfavourable bond" ×1.43 → <b>≈50d</b>. So use 50 in the Lap×dia cell for top bars, 35 for the rest — already prefilled.<br>
     Bars over 32 mm must not be lap-spliced (IRC:112 Cl. 15.2.6) — the tool warns and you should use couplers (set Laps = 0 and note "couplers" in Remarks; couplers add no length).
